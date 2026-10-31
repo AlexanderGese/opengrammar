@@ -32,7 +32,7 @@ export class HarperEngine implements GrammarEngine {
   /** Rejects with an AbortError when the signal is aborted, so callers never mistake it for "no issues". */
   async check(text: string, _lang: Lang, signal: AbortSignal): Promise<Issue[]> {
     signal.throwIfAborted();
-    const linter = (this.linter ??= new LocalLinter({ binary: this.createBinary() }));
+    const linter = (this.linter ??= new LocalLinter({ binary: guardSetup(this.createBinary()) }));
     this.ready ??= linter.setup().catch((e: unknown) => {
       this.linter = null; // let the next check retry with a fresh linter and binary
       this.ready = null;
@@ -43,6 +43,21 @@ export class HarperEngine implements GrammarEngine {
     const lints = await linter.lint(text, { language: 'plaintext' });
     return lints.map((lint, n) => toIssue(lint, text, n));
   }
+}
+
+/**
+ * LocalLinter's constructor calls `binary.setup()` without awaiting it, so a failed wasm load would
+ * surface as an unhandled rejection. Hand it a view whose setup() promise always has a handler;
+ * awaiting callers still see the rejection.
+ */
+function guardSetup(binary: LinterInit['binary']): LinterInit['binary'] {
+  const guarded = Object.create(binary) as LinterInit['binary'];
+  guarded.setup = () => {
+    const p = binary.setup();
+    p.catch(() => {});
+    return p;
+  };
+  return guarded;
 }
 
 function toIssue(lint: Lint, text: string, n: number): Issue {

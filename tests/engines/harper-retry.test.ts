@@ -7,6 +7,20 @@ import { HarperEngine } from '@/engines/harper';
 const signal = new AbortController().signal;
 
 describe('HarperEngine setup', () => {
+  it('leaves no unhandled rejection when the wasm fails to load', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const e = new HarperEngine(() => createBinaryModuleFromUrl('file:///nonexistent/harper.wasm'));
+      await expect(e.check('This is teh test.', 'en', signal)).rejects.toThrow();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
   it('builds a fresh linter from a fresh binary after a failed setup', async () => {
     const factory = vi.fn()
       .mockReturnValueOnce(createBinaryModuleFromUrl('file:///nonexistent/harper.wasm'))
