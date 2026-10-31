@@ -43,20 +43,25 @@ export default defineContentScript({
       card.hide();
     };
 
-    document.addEventListener('focusin', (e) => attach(e.target), true);
-    document.addEventListener('mousedown', (e) => { if (!card.containsEvent(e)) card.hide(); }, true);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') card.hide(); }, true);
+    // ctx.addEventListener removes these automatically when the context is invalidated.
+    ctx.addEventListener(document, 'focusin', (e) => attach(e.target), { capture: true });
+    ctx.addEventListener(document, 'mousedown', (e) => { if (!card.containsEvent(e)) card.hide(); }, { capture: true });
+    ctx.addEventListener(document, 'keydown', (e) => { if (e.key === 'Escape') card.hide(); }, { capture: true });
 
     const unwatch = watchSettings((next) => {
       settings = next;
       if (!active()) destroyAll();
-      else for (const session of sessions.values()) session.recheck();
+      else {
+        for (const session of sessions.values()) session.recheck();
+        attach(document.activeElement);
+      }
     });
 
     attach(document.activeElement);
     ctx.onInvalidated(() => {
       unwatch();
       destroyAll();
+      overlay.destroy();
     });
   },
 });

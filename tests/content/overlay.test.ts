@@ -35,6 +35,14 @@ describe('Overlay', () => {
     overlay.clear('f1');
     expect(overlay.root.querySelectorAll('[data-og-underline]')).toHaveLength(0);
   });
+
+  it('destroy removes the host from the document', () => {
+    const overlay = new Overlay();
+    overlay.draw('f1', [{ issue: issue(), rects: [new DOMRect(10, 10, 30, 16)] }], clip);
+    expect(document.querySelector('opengrammar-overlay')).not.toBeNull();
+    overlay.destroy();
+    expect(document.querySelector('opengrammar-overlay')).toBeNull();
+  });
 });
 
 describe('SuggestionCard', () => {

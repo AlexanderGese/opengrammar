@@ -33,6 +33,12 @@ export class Overlay {
     document.documentElement.append(host);
   }
 
+  /** Remove the host element and forget every field layer. */
+  destroy(): void {
+    this.layers.clear();
+    this.root.host.remove();
+  }
+
   draw(fieldId: string, marks: Mark[], clip: DOMRect): void {
     let layer = this.layers.get(fieldId);
     if (!layer) {
