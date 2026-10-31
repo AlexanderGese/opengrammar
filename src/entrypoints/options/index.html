@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="manifest.open_in_tab" content="true" />
+    <title>OpenGrammar settings</title>
+    <style>main { max-width: 560px; margin: 0 auto; }</style>
+  </head>
+  <body>
+    <main>
+      <h1>OpenGrammar settings</h1>
+      <section data-list="dictionary">
+        <h2>Personal dictionary</h2>
+        <p class="muted">Words here are never flagged as spelling mistakes.</p>
+        <form><input type="text" name="value" placeholder="Add a word" /><button type="submit">Add</button></form>
+        <ul></ul>
+      </section>
+      <section data-list="ignoredSites">
+        <h2>Ignored sites</h2>
+        <p class="muted">OpenGrammar stays off on these sites and their subdomains.</p>
+        <form><input type="text" name="value" placeholder="example.com" /><button type="submit">Add</button></form>
+        <ul></ul>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
