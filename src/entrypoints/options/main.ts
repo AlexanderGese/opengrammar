@@ -50,7 +50,8 @@ for (const { key, normalize } of LISTS) {
     const value = normalize(input.value);
     if (!value) return;
     const current = await getSettings();
-    if (!current[key].includes(value)) await setList(key, [...current[key], value]);
+    const lower = value.toLowerCase();
+    if (!current[key].some((v) => v.toLowerCase() === lower)) await setList(key, [...current[key], value]);
     input.value = '';
   });
 }

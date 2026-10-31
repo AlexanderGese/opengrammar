@@ -11,8 +11,11 @@ npm install
 npm run dev            # Chromium with the extension loaded, hot reload
 npm run dev:firefox    # Firefox
 npm test               # unit tests
+npm run compile        # type-check
 npm run e2e            # build + Playwright tests (run `npx playwright install chromium` once)
 ```
+
+Firefox: after installing, allow access to all websites in about:addons → OpenGrammar → Permissions (MV3 host access is opt-in).
 
 Builds: `npm run build` → `.output/chrome-mv3`, `npm run build:firefox` → `.output/firefox-mv3`.
 

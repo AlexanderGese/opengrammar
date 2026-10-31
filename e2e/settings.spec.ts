@@ -42,7 +42,17 @@ test('options page lists and removes dictionary words', async ({ page, extension
   await list.getByRole('button', { name: 'Remove' }).click();
   await expect(list).not.toContainText('Zorblax');
 
-  const sites = page.locator('[data-list="ignoredSites"]');
+  const dict = page.locator('[data-list="dictionary"]');
+  const dictInput = dict.locator('input[name="value"]');
+  await dictInput.fill('Zorblax');
+  await dict.getByRole('button', { name: 'Add' }).click();
+  await expect(list).toContainText('Zorblax');
+  await dictInput.fill('zorblax');
+  await dict.getByRole('button', { name: 'Add' }).click();
+  await expect(dictInput).toHaveValue('');
+  await expect(list.locator('li')).toHaveCount(1);
+
+  const sites =page.locator('[data-list="ignoredSites"]');
   await sites.locator('input[name="value"]').fill('https://Reddit.com/r/x');
   await sites.getByRole('button', { name: 'Add' }).click();
   await expect(sites.locator('ul')).toContainText('reddit.com');
