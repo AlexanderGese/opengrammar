@@ -16,6 +16,13 @@ describe('settings storage', () => {
     expect(await getSettings()).toEqual({ ...DEFAULT_SETTINGS, enabled: false });
   });
 
+  it('stores only the overrides', async () => {
+    expect(await updateSettings({ enabled: false })).toEqual({ ...DEFAULT_SETTINGS, enabled: false });
+    await updateSettings({ dictionary: ['a'] });
+    const raw = await fakeBrowser.storage.local.get('settings');
+    expect(raw.settings).toEqual({ enabled: false, dictionary: ['a'] });
+  });
+
   it('adds dictionary words once, case-insensitively', async () => {
     await addToDictionary('Zorblax');
     await addToDictionary('zorblax');

@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ignoredSites: [],
 };
 
-const settingsItem = storage.defineItem<Partial<Settings>>('local:settings', { fallback: {} });
+const settingsItem = storage.defineItem<Partial<Settings>>('local:settings', { fallback: {}, version: 1 });
 
 export function withMode(settings: Settings, mode: Mode): Settings {
   return { ...settings, mode, ...MODE_PRESETS[mode] };
@@ -43,9 +43,10 @@ export async function getSettings(): Promise<Settings> {
 }
 
 export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
-  const next = { ...(await getSettings()), ...patch };
+  // Store only overrides so changed defaults reach users who never touched a field.
+  const next = { ...(await settingsItem.getValue()), ...patch };
   await settingsItem.setValue(next);
-  return next;
+  return { ...DEFAULT_SETTINGS, ...next };
 }
 
 export function watchSettings(callback: (settings: Settings) => void): () => void {

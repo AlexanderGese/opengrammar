@@ -54,7 +54,7 @@ Content script (every page)
         |  runtime messages
 Background (Chromium service worker / Firefox event page)
   Orchestrator    debounce, language detection, routing, sentence cache, dictionary filter
-  Settings        typed wrapper over storage.sync
+  Settings        typed wrapper over storage.local
         |  Engine interface
   HarperEngine        harper.js WASM, English
   LanguageToolEngine  HTTP POST {ltUrl}/v2/check
