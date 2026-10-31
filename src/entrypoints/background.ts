@@ -7,7 +7,7 @@ import { isCheckRequest, type CheckResponse } from '@/lib/types';
 
 export default defineBackground(() => {
   const orchestrator = new Orchestrator({
-    engines: [new HarperEngine(createBinaryModuleFromUrl(browser.runtime.getURL('/harper.wasm' as any), 'full'))],
+    engines: [new HarperEngine(() => createBinaryModuleFromUrl(browser.runtime.getURL('/harper.wasm' as any), 'full'))],
     getSettings,
     detect: (text, fallback) =>
       detectLang(text, fallback, async (t) => {

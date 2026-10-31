@@ -75,9 +75,45 @@ describe('Orchestrator', () => {
 
     expect(await first).toEqual([]);
     expect(await second).toHaveLength(1);
-    // The superseded check's sentence result is still cached.
-    expect(await o.check('f1', 'One bad.')).toHaveLength(1);
+  });
+
+  it('does not cache the result of an aborted engine call', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const engine = badWordEngine();
+    engine.check.mockImplementationOnce(async (text: string, _lang?: string, signal?: AbortSignal) => {
+      await gate;
+      return signal?.aborted ? [] : findBad(text);
+    });
+    const o = make(engine);
+    const first = o.check('f1', 'One bad.');
+    await Promise.resolve();
+    await Promise.resolve();
+    const second = o.check('f1', 'Other.');
+    release();
+    expect(await first).toEqual([]);
+    await second;
     expect(engine.check).toHaveBeenCalledTimes(2);
+    expect(await o.check('f1', 'One bad.')).toHaveLength(1);
+    expect(engine.check).toHaveBeenCalledTimes(3);
+  });
+
+  it('swallows an engine AbortError for a superseded check', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const engine = badWordEngine();
+    engine.check.mockImplementationOnce(async (_text: string, _lang?: string, signal?: AbortSignal) => {
+      await gate;
+      signal?.throwIfAborted();
+      return [];
+    });
+    const o = make(engine);
+    const first = o.check('f1', 'One bad.');
+    await Promise.resolve();
+    await Promise.resolve();
+    void o.check('f1', 'Other.');
+    release();
+    await expect(first).resolves.toEqual([]);
   });
 
   it('keeps a few thousand sentences cached by default', async () => {

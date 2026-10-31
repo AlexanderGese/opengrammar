@@ -8,6 +8,7 @@ const MIRRORED = [
   'font-family', 'font-size', 'font-style', 'font-variant', 'font-weight', 'font-stretch',
   'letter-spacing', 'line-height', 'text-transform', 'text-indent', 'text-align', 'word-spacing',
   'white-space', 'tab-size', 'direction', 'overflow-wrap', 'word-break',
+  'font-kerning', 'font-feature-settings', 'font-variant-ligatures', 'hyphens', 'text-rendering', 'font-size-adjust',
 ];
 
 /** Measures text positions by laying the same text out in a hidden div that copies the field's styles. */

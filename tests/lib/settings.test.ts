@@ -16,6 +16,13 @@ describe('settings storage', () => {
     expect(await getSettings()).toEqual({ ...DEFAULT_SETTINGS, enabled: false });
   });
 
+  it('layers the stored mode preset under overrides', async () => {
+    await updateSettings({ mode: 'full' });
+    expect(await getSettings()).toMatchObject({ mode: 'full', modelSize: 'small', proactiveWording: true });
+    await updateSettings({ modelSize: 'tiny' });
+    expect((await getSettings()).modelSize).toBe('tiny');
+  });
+
   it('stores only the overrides', async () => {
     expect(await updateSettings({ enabled: false })).toEqual({ ...DEFAULT_SETTINGS, enabled: false });
     await updateSettings({ dictionary: ['a'] });

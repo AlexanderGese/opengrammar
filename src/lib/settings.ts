@@ -39,18 +39,23 @@ export function withMode(settings: Settings, mode: Mode): Settings {
 }
 
 export async function getSettings(): Promise<Settings> {
-  return { ...DEFAULT_SETTINGS, ...(await settingsItem.getValue()) };
+  return resolve(await settingsItem.getValue());
+}
+
+/** Defaults, then the stored mode's preset, then the user's own overrides. */
+function resolve(stored: Partial<Settings>): Settings {
+  return { ...DEFAULT_SETTINGS, ...MODE_PRESETS[stored.mode ?? DEFAULT_SETTINGS.mode], ...stored };
 }
 
 export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
   // Store only overrides so changed defaults reach users who never touched a field.
   const next = { ...(await settingsItem.getValue()), ...patch };
   await settingsItem.setValue(next);
-  return { ...DEFAULT_SETTINGS, ...next };
+  return resolve(next);
 }
 
 export function watchSettings(callback: (settings: Settings) => void): () => void {
-  return settingsItem.watch((value) => callback({ ...DEFAULT_SETTINGS, ...value }));
+  return settingsItem.watch((value) => callback(resolve(value)));
 }
 
 export async function addToDictionary(word: string): Promise<void> {

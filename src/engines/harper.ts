@@ -19,26 +19,28 @@ export function toIssueKind(lintKind: string): IssueKind {
 
 export class HarperEngine implements GrammarEngine {
   readonly id = 'harper' as const;
-  private readonly linter: LocalLinter;
+  private linter: LocalLinter | null = null;
   private ready: Promise<void> | null = null;
 
-  constructor(binary: LinterInit['binary']) {
-    this.linter = new LocalLinter({ binary });
-  }
+  /** harper.js caches a failed setup in both the linter and the binary, so a retry needs fresh instances. */
+  constructor(private readonly createBinary: () => LinterInit['binary']) {}
 
   supports(lang: Lang): boolean {
     return lang === 'en';
   }
 
+  /** Rejects with an AbortError when the signal is aborted, so callers never mistake it for "no issues". */
   async check(text: string, _lang: Lang, signal: AbortSignal): Promise<Issue[]> {
-    if (signal.aborted) return [];
-    this.ready ??= this.linter.setup().catch((e: unknown) => {
-      this.ready = null; // let the next check retry
+    signal.throwIfAborted();
+    const linter = (this.linter ??= new LocalLinter({ binary: this.createBinary() }));
+    this.ready ??= linter.setup().catch((e: unknown) => {
+      this.linter = null; // let the next check retry with a fresh linter and binary
+      this.ready = null;
       throw e;
     });
     await this.ready;
-    if (signal.aborted) return [];
-    const lints = await this.linter.lint(text, { language: 'plaintext' });
+    signal.throwIfAborted();
+    const lints = await linter.lint(text, { language: 'plaintext' });
     return lints.map((lint, n) => toIssue(lint, text, n));
   }
 }

@@ -40,7 +40,13 @@ export class Orchestrator {
         const key = `${engine.id}|${lang}|${sentence.text}`;
         let found = this.cache.get(key);
         if (!found) {
-          found = await engine.check(sentence.text, lang, ctrl.signal);
+          try {
+            found = await engine.check(sentence.text, lang, ctrl.signal);
+          } catch (err) {
+            if (ctrl.signal.aborted || (err instanceof Error && err.name === 'AbortError')) return [];
+            throw err;
+          }
+          if (ctrl.signal.aborted) return []; // an engine that ignores the contract: don't cache its result
           this.cache.set(key, found);
           if (ctrl.signal.aborted) return [];
         }

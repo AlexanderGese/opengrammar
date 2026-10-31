@@ -16,6 +16,7 @@ export interface Issue {
 export interface GrammarEngine {
   readonly id: IssueSource;
   supports(lang: Lang): boolean;
+  /** Must reject (AbortError) rather than resolve when the signal is aborted. */
   check(text: string, lang: Lang, signal: AbortSignal): Promise<Issue[]>;
 }
 
