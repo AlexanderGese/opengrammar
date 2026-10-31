@@ -56,4 +56,24 @@ describe('SuggestionCard', () => {
     new SuggestionCard(overlay.root).show(issue(), 'teh', new DOMRect(), { onApply: vi.fn(), onIgnore: vi.fn() });
     expect(overlay.root.querySelector('.og-dict')).toBeNull();
   });
+
+  it('flips above the anchor when it would overflow the viewport', () => {
+    const overlay = new Overlay();
+    const card = new SuggestionCard(overlay.root);
+    const desc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 100 });
+    const prevHeight = window.innerHeight;
+    window.innerHeight = 300;
+    try {
+      card.show(issue(), 'teh', new DOMRect(10, 250, 30, 16), { onApply: vi.fn(), onIgnore: vi.fn() });
+      const el = overlay.root.querySelector<HTMLElement>('[data-og-card]')!;
+      expect(el.style.top).toBe(`${250 - 6 - 100}px`);
+      card.show(issue(), 'teh', new DOMRect(10, 20, 30, 16), { onApply: vi.fn(), onIgnore: vi.fn() });
+      expect(overlay.root.querySelector<HTMLElement>('[data-og-card]')!.style.top).toBe('42px');
+    } finally {
+      window.innerHeight = prevHeight;
+      if (desc) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', desc);
+      else delete (HTMLElement.prototype as unknown as Record<string, unknown>).offsetHeight;
+    }
+  });
 });

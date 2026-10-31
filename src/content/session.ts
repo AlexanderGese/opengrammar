@@ -27,16 +27,17 @@ export class FieldSession {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly disposers: (() => void)[] = [];
   private disposed = false;
+  private frame: number | undefined;
 
   constructor(private readonly adapter: TextAdapter, private readonly deps: SessionDeps) {
     const el = adapter.el;
     this.text = adapter.getText();
     this.listen(el, 'input', () => this.onInput());
-    this.listen(el, 'scroll', () => this.render());
+    this.listen(el, 'scroll', () => this.onScroll());
     this.listen(el, 'click', (e) => this.onClick(e as MouseEvent));
-    this.listen(window, 'scroll', () => this.render(), true);
-    this.listen(window, 'resize', () => this.render());
-    const observer = new ResizeObserver(() => this.render());
+    this.listen(window, 'scroll', () => this.onScroll(), true);
+    this.listen(window, 'resize', () => this.scheduleRender());
+    const observer = new ResizeObserver(() => this.scheduleRender());
     observer.observe(el);
     this.disposers.push(() => observer.disconnect());
     this.schedule(0);
@@ -62,8 +63,11 @@ export class FieldSession {
     if (this.disposed) return;
     this.disposed = true;
     clearTimeout(this.timer);
+    if (this.frame !== undefined) cancelAnimationFrame(this.frame);
+    this.frame = undefined;
     for (const dispose of this.disposers) dispose();
     this.deps.overlay.clear(this.id);
+    this.deps.card.hide();
     this.adapter.destroy();
     this.deps.onDispose?.();
   }
@@ -71,6 +75,19 @@ export class FieldSession {
   private listen(target: EventTarget, type: string, fn: (e: Event) => void, capture = false): void {
     target.addEventListener(type, fn, capture);
     this.disposers.push(() => target.removeEventListener(type, fn, capture));
+  }
+
+  private onScroll(): void {
+    this.deps.card.hide();
+    this.scheduleRender();
+  }
+
+  private scheduleRender(): void {
+    if (this.disposed || this.frame !== undefined) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = undefined;
+      this.render();
+    });
   }
 
   private onInput(): void {
@@ -106,7 +123,10 @@ export class FieldSession {
     const hit = this.marks.find((m) =>
       m.rects.some((r) => e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom + 3),
     );
-    if (!hit) return;
+    if (!hit) {
+      this.deps.card.hide();
+      return;
+    }
     const { issue } = hit;
     const anchor = hit.rects[0];
     if (!anchor) return;
@@ -120,7 +140,7 @@ export class FieldSession {
       onIgnore: hide,
       onAddToDictionary: issue.kind === 'spelling'
         ? () => {
-            void this.deps.addToDictionary(original);
+            this.deps.addToDictionary(original).catch(() => {});
             hide();
           }
         : undefined,

@@ -59,6 +59,9 @@ export class SuggestionCard {
     card.style.top = `${anchor.bottom + 6}px`;
     this.root.append(card);
     this.el = card;
+    if (anchor.bottom + 6 + card.offsetHeight > window.innerHeight) {
+      card.style.top = `${Math.max(8, anchor.top - 6 - card.offsetHeight)}px`;
+    }
   }
 
   hide(): void {

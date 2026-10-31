@@ -116,4 +116,50 @@ describe('FieldSession', () => {
     expect(d.addToDictionary).toHaveBeenCalledWith('teh');
     expect(lastMarks(d)).toHaveLength(0);
   });
+
+  it('destroy clears everything and stops rendering', async () => {
+    const d = deps(async (_id, text) => [issueAt(text, 'teh')]);
+    const onDispose = vi.fn();
+    const adapter = fakeAdapter('This is teh test');
+    const session = new FieldSession(adapter, { ...d, onDispose });
+    await vi.runAllTimersAsync();
+    const draws = d.overlay.draw.mock.calls.length;
+    session.destroy();
+    expect(d.overlay.clear).toHaveBeenCalledWith(session.id);
+    expect(d.card.hide).toHaveBeenCalled();
+    expect(onDispose).toHaveBeenCalledTimes(1);
+    adapter.type('This is teh tests');
+    window.dispatchEvent(new Event('resize'));
+    await vi.runAllTimersAsync();
+    expect(d.overlay.draw.mock.calls.length).toBe(draws);
+  });
+
+  it('hides the card when a click misses every mark', async () => {
+    const d = deps(async (_id, text) => [issueAt(text, 'teh')]);
+    const adapter = fakeAdapter('This is teh test');
+    new FieldSession(adapter, d);
+    await vi.runAllTimersAsync();
+    d.card.hide.mockClear();
+    adapter.el.dispatchEvent(new MouseEvent('click', { clientX: 400, clientY: 400 }));
+    expect(d.card.hide).toHaveBeenCalledTimes(1);
+    expect(d.card.show).not.toHaveBeenCalled();
+  });
+
+  it('coalesces scrolls into one draw per frame and hides the card', async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'] });
+    const d = deps(async (_id, text) => [issueAt(text, 'teh')]);
+    const adapter = fakeAdapter('This is teh test');
+    new FieldSession(adapter, d);
+    await vi.runAllTimersAsync();
+    const draws = d.overlay.draw.mock.calls.length;
+    d.card.hide.mockClear();
+    adapter.el.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('resize'));
+    expect(d.overlay.draw.mock.calls.length).toBe(draws);
+    expect(d.card.hide).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(d.overlay.draw.mock.calls.length).toBe(draws + 1);
+  });
 });
