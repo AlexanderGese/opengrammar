@@ -134,6 +134,65 @@ describe('FieldSession', () => {
     expect(d.overlay.draw.mock.calls.length).toBe(draws);
   });
 
+  it('does not apply over text that changed since the card opened', async () => {
+    const d = deps(async (_id, text) => [issueAt(text, 'teh')]);
+    const adapter = fakeAdapter('This is teh test');
+    new FieldSession(adapter, d);
+    await vi.runAllTimersAsync();
+    adapter.el.dispatchEvent(new MouseEvent('click', { clientX: 20, clientY: 20 }));
+    const actions = d.card.show.mock.calls[0]![3];
+    const el = adapter.el as HTMLTextAreaElement;
+    el.value = 'This is a teh test'; // page script edit, no input event
+    const checks = d.check.mock.calls.length;
+    actions.onApply('the');
+    expect(el.value).toBe('This is a teh test');
+    await vi.runAllTimersAsync();
+    expect(d.check.mock.calls.length).toBe(checks + 1);
+  });
+
+  it('resyncs instead of drawing stale ranges when text changed without input', async () => {
+    const d = deps(async (_id, text) => [issueAt(text, 'teh')]);
+    const adapter = fakeAdapter('This is teh test');
+    const session = new FieldSession(adapter, d);
+    await vi.runAllTimersAsync();
+    expect(lastMarks(d)).toHaveLength(1);
+    const checks = d.check.mock.calls.length;
+    d.check.mockImplementation(async () => []);
+    (adapter.el as HTMLTextAreaElement).value = 'This is tehh test';
+    session.render();
+    expect(lastMarks(d)).toHaveLength(0);
+    await vi.runAllTimersAsync();
+    expect(d.check.mock.calls.length).toBe(checks + 1);
+  });
+
+  it('resyncs a contenteditable root on DOM mutations', async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'] });
+    const el = document.createElement('div');
+    el.contentEditable = 'true';
+    el.textContent = 'This is teh test';
+    document.body.append(el);
+    const adapter: TextAdapter = {
+      el,
+      getText: () => el.textContent ?? '',
+      measure: (ranges: TextRange[]) => ranges.map(() => [RECT]),
+      replace: () => {},
+      destroy: () => {},
+    };
+    const d = deps(async (_id, text) => [issueAt(text, 'teh')]);
+    const session = new FieldSession(adapter, d);
+    await vi.runAllTimersAsync();
+    const checks = d.check.mock.calls.length;
+    d.check.mockImplementation(async () => []);
+    el.textContent = 'This is tehh test';
+    await Promise.resolve(); // MutationObserver callback
+    await vi.advanceTimersByTimeAsync(20); // frame
+    expect(lastMarks(d)).toHaveLength(0);
+    await vi.runAllTimersAsync();
+    expect(d.check.mock.calls.length).toBe(checks + 1);
+    session.destroy();
+  });
+
   it('hides the card when a click misses every mark', async () => {
     const d = deps(async (_id, text) => [issueAt(text, 'teh')]);
     const adapter = fakeAdapter('This is teh test');

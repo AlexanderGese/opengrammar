@@ -55,6 +55,18 @@ describe('ContentEditableAdapter', () => {
     expect(el.textContent).toBe('Hi');
   });
 
+  it('ignores a collapsed empty replace', () => {
+    const el = editor('<p>abc</p>');
+    const exec = vi.fn(() => false);
+    document.execCommand = exec;
+    const onInput = vi.fn();
+    el.addEventListener('input', onInput);
+    new ContentEditableAdapter(el).replace({ start: 2, end: 2 }, '');
+    expect(el.textContent).toBe('abc');
+    expect(exec).not.toHaveBeenCalled();
+    expect(onInput).not.toHaveBeenCalled();
+  });
+
   it('measures boundary and empty ranges without throwing', () => {
     const adapter = new ContentEditableAdapter(editor('<p>One</p><p>Two</p>'));
     expect(adapter.measure([{ start: 0, end: 0 }, { start: 8, end: 8 }, { start: 3, end: 4 }])).toHaveLength(3);
@@ -103,6 +115,36 @@ describe('TextareaAdapter', () => {
     adapter.replace({ start: 8, end: 11 }, 'the');
     expect(adapter.getText()).toBe('This is the test');
     expect(onInput).toHaveBeenCalled();
+  });
+
+  it('ignores a collapsed empty replace', () => {
+    document.body.innerHTML = '<textarea></textarea>';
+    const ta = document.querySelector('textarea')!;
+    ta.value = 'abc';
+    const exec = vi.fn(() => false);
+    document.execCommand = exec;
+    const onInput = vi.fn();
+    ta.addEventListener('input', onInput);
+    new TextareaAdapter(ta).replace({ start: 2, end: 2 }, '');
+    expect(ta.value).toBe('abc');
+    expect(exec).not.toHaveBeenCalled();
+    expect(onInput).not.toHaveBeenCalled();
+  });
+
+  it('mounts the mirror in the given parent', () => {
+    document.body.innerHTML = '<textarea></textarea><div id="host"></div>';
+    const ta = document.querySelector('textarea')!;
+    ta.value = 'one two';
+    const root = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    const adapter = new TextareaAdapter(ta, root);
+    adapter.measure([{ start: 0, end: 3 }]);
+    expect(document.querySelectorAll('[data-og-mirror]')).toHaveLength(0);
+    const mirror = root.querySelector<HTMLElement>('[data-og-mirror]');
+    expect(mirror).not.toBeNull();
+    expect(mirror!.style.getPropertyValue('pointer-events')).toBe('none');
+    expect(mirror!.style.getPropertyValue('visibility')).toBe('hidden');
+    adapter.destroy();
+    expect(root.querySelector('[data-og-mirror]')).toBeNull();
   });
 
   it('measures with a single mirror element and removes it on destroy', () => {

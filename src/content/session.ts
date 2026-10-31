@@ -40,6 +40,12 @@ export class FieldSession {
     const observer = new ResizeObserver(() => this.scheduleRender());
     observer.observe(el);
     this.disposers.push(() => observer.disconnect());
+    if (!(el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement)) {
+      // Page scripts can rewrite a contenteditable without firing input; render() resyncs.
+      const mutations = new MutationObserver(() => this.scheduleRender());
+      mutations.observe(el, { characterData: true, childList: true, subtree: true });
+      this.disposers.push(() => mutations.disconnect());
+    }
     this.schedule(0);
   }
 
@@ -51,6 +57,11 @@ export class FieldSession {
     if (this.disposed) return;
     if (!this.adapter.el.isConnected) {
       this.destroy();
+      return;
+    }
+    if (this.adapter.getText() !== this.text) {
+      // Text changed under us without an input event: rebase instead of drawing stale ranges.
+      this.onInput();
       return;
     }
     const visible = this.issues.filter((i) => !this.ignored.has(ignoreKey(this.text, i)));
@@ -136,7 +147,14 @@ export class FieldSession {
       this.render();
     };
     this.deps.card.show(issue, original, anchor, {
-      onApply: (replacement) => this.adapter.replace(issue, replacement),
+      onApply: (replacement) => {
+        // The page may have changed the text since the card opened; never overwrite the wrong span.
+        if (this.adapter.getText().slice(issue.start, issue.end) !== original) {
+          this.recheck();
+          return;
+        }
+        this.adapter.replace(issue, replacement);
+      },
       onIgnore: hide,
       onAddToDictionary: issue.kind === 'spelling'
         ? () => {

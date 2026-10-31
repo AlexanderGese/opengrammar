@@ -14,7 +14,10 @@ const MIRRORED = [
 export class TextareaAdapter implements TextAdapter {
   private mirror: HTMLDivElement | null = null;
 
-  constructor(readonly el: HTMLTextAreaElement | HTMLInputElement) {}
+  constructor(
+    readonly el: HTMLTextAreaElement | HTMLInputElement,
+    private readonly mirrorParent: ParentNode = document.body ?? document.documentElement,
+  ) {}
 
   getText(): string {
     return this.el.value;
@@ -58,6 +61,7 @@ export class TextareaAdapter implements TextAdapter {
   }
 
   replace({ start, end }: TextRange, text: string): void {
+    if (start === end && text === '') return;
     const el = this.el;
     el.focus();
     el.setSelectionRange(start, end);
@@ -77,7 +81,7 @@ export class TextareaAdapter implements TextAdapter {
       this.mirror = document.createElement('div');
       this.mirror.dataset.ogMirror = '';
       this.mirror.setAttribute('aria-hidden', 'true');
-      (document.body ?? document.documentElement).append(this.mirror);
+      this.mirrorParent.append(this.mirror);
     }
     return this.mirror;
   }

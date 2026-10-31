@@ -30,7 +30,7 @@ export default defineContentScript({
       if (!el || sessions.has(el)) return;
       const adapter: TextAdapter =
         el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement
-          ? new TextareaAdapter(el)
+          ? new TextareaAdapter(el, overlay.root)
           : new ContentEditableAdapter(el);
       sessions.set(el, new FieldSession(adapter, {
         overlay, card, check, addToDictionary,

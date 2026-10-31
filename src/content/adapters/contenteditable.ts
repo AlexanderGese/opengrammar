@@ -32,6 +32,7 @@ export class ContentEditableAdapter implements TextAdapter {
   }
 
   replace(r: TextRange, text: string): void {
+    if (r.start === r.end && text === '') return;
     this.rebuild();
     const range = this.toDomRange(r);
     if (!range) return;
