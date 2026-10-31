@@ -78,17 +78,34 @@ export class ContentEditableAdapter implements TextAdapter {
   }
 
   private pointAt(offset: number, bias: 'start' | 'end'): { node: Text; offset: number } | null {
-    for (const seg of this.segments) {
-      const segEnd = seg.start + seg.node.data.length;
-      const inside = bias === 'start'
-        ? offset >= seg.start && offset < segEnd
-        : offset > seg.start && offset <= segEnd;
-      if (inside) return { node: seg.node, offset: offset - seg.start };
+    const segs = this.segments;
+    const endOf = (seg: Segment) => seg.start + seg.node.data.length;
+    const at = (seg: Segment, o: number) => ({ node: seg.node, offset: o });
+    if (segs.length === 0) return null;
+
+    if (bias === 'start') {
+      for (const seg of segs) if (offset >= seg.start && offset < endOf(seg)) return at(seg, offset - seg.start);
+      for (const seg of segs) if (endOf(seg) === offset) return at(seg, offset - seg.start);
+      const next = segs.find((seg) => seg.start > offset);
+      if (next) return at(next, 0);
+      const last = segs[segs.length - 1]!;
+      return at(last, last.node.data.length);
     }
-    return null;
+    for (const seg of segs) if (offset > seg.start && offset <= endOf(seg)) return at(seg, offset - seg.start);
+    for (const seg of segs) if (seg.start === offset) return at(seg, 0);
+    let prev: Segment | undefined;
+    for (const seg of segs) if (seg.start < offset) prev = seg;
+    const seg = prev ?? segs[0]!;
+    return at(seg, prev ? seg.node.data.length : 0);
   }
 
   private toDomRange({ start, end }: TextRange): Range | null {
+    if (this.segments.length === 0) {
+      const empty = document.createRange();
+      empty.setStart(this.el, 0);
+      empty.setEnd(this.el, 0);
+      return empty;
+    }
     const a = this.pointAt(start, 'start');
     const b = this.pointAt(end, 'end');
     if (!a || !b) return null;

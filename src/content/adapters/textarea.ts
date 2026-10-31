@@ -7,7 +7,7 @@ const MIRRORED = [
   'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
   'font-family', 'font-size', 'font-style', 'font-variant', 'font-weight', 'font-stretch',
   'letter-spacing', 'line-height', 'text-transform', 'text-indent', 'text-align', 'word-spacing',
-  'tab-size', 'direction', 'overflow-wrap', 'word-break',
+  'white-space', 'tab-size', 'direction', 'overflow-wrap', 'word-break',
 ];
 
 /** Measures text positions by laying the same text out in a hidden div that copies the field's styles. */
@@ -24,24 +24,37 @@ export class TextareaAdapter implements TextAdapter {
     if (ranges.length === 0) return [];
     const mirror = this.ensureMirror();
     const text = this.el.value;
-    const spans: HTMLSpanElement[] = [];
-    const order = ranges.map((r, i) => ({ ...r, i })).sort((a, b) => a.start - b.start);
+    const cuts = new Set<number>();
+    for (const r of ranges) {
+      if (r.end <= r.start) continue;
+      cuts.add(Math.min(Math.max(r.start, 0), text.length));
+      cuts.add(Math.min(Math.max(r.end, 0), text.length));
+    }
+    const bounds = [...cuts].sort((x, y) => x - y);
+    const pieces: { start: number; end: number; span: HTMLSpanElement }[] = [];
 
     mirror.textContent = '';
     let pos = 0;
-    for (const r of order) {
-      const start = Math.max(r.start, pos);
-      const end = Math.max(r.end, start);
-      mirror.append(text.slice(pos, start));
+    for (let k = 0; k < bounds.length; k++) {
+      const start = bounds[k]!;
+      const end = bounds[k + 1];
+      if (end === undefined) break;
+      if (start > pos) mirror.append(text.slice(pos, start));
       const span = document.createElement('span');
       span.textContent = text.slice(start, end);
       mirror.append(span);
-      spans[r.i] = span;
+      pieces.push({ start, end, span });
       pos = end;
     }
     mirror.append(`${text.slice(pos)}​`);
     this.syncGeometry(mirror);
-    return spans.map((span) => Array.from(span.getClientRects()));
+    return ranges.map((r) =>
+      r.end <= r.start
+        ? []
+        : pieces
+            .filter((p) => p.start >= r.start && p.end <= r.end)
+            .flatMap((p) => Array.from(p.span.getClientRects())),
+    );
   }
 
   replace({ start, end }: TextRange, text: string): void {
@@ -83,7 +96,7 @@ export class TextareaAdapter implements TextAdapter {
     mirror.style.setProperty('visibility', 'hidden');
     mirror.style.setProperty('pointer-events', 'none');
     mirror.style.setProperty('border-color', 'transparent');
-    mirror.style.setProperty('white-space', isTextarea ? 'pre-wrap' : 'pre');
+    if (!isTextarea) mirror.style.setProperty('white-space', 'pre');
     mirror.style.setProperty('overflow-x', 'hidden');
     // Match the field's scrollbar so wrapping width is identical.
     mirror.style.setProperty('overflow-y', isTextarea && el.scrollHeight > el.clientHeight ? 'scroll' : 'hidden');
