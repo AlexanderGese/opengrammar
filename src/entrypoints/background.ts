@@ -1,4 +1,4 @@
-import { binary } from 'harper.js/binary';
+import { createBinaryModuleFromUrl } from 'harper.js';
 import { Orchestrator } from '@/background/orchestrator';
 import { HarperEngine } from '@/engines/harper';
 import { detectLang } from '@/lib/language';
@@ -7,7 +7,7 @@ import { isCheckRequest, type CheckResponse } from '@/lib/types';
 
 export default defineBackground(() => {
   const orchestrator = new Orchestrator({
-    engines: [new HarperEngine(binary)],
+    engines: [new HarperEngine(createBinaryModuleFromUrl(browser.runtime.getURL('/harper.wasm' as any), 'full'))],
     getSettings,
     detect: (text, fallback) =>
       detectLang(text, fallback, async (t) => {

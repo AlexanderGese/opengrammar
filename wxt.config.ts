@@ -1,8 +1,17 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'wxt';
 
 export default defineConfig({
   srcDir: 'src',
   manifestVersion: 3,
+  hooks: {
+    'build:publicAssets': (_wxt, files) => {
+      files.push({
+        absoluteSrc: fileURLToPath(new URL('./node_modules/harper.js/dist/harper_wasm_bg.wasm', import.meta.url)),
+        relativeDest: 'harper.wasm',
+      });
+    },
+  },
   manifest: ({ browser }) => ({
     name: 'OpenGrammar',
     description: 'Local, private grammar checking and better wording.',
