@@ -26,11 +26,20 @@ in-browser LLM for wording. No accounts, no cloud by default.
 - Native helper app (the engine interface leaves room for it — see "Future").
 - Accounts, sync servers, cloud LLMs, mobile.
 
+## Delivery
+
+- **Plan 1 — Foundation + live grammar:** scaffold, engine interface, Harper, orchestrator, settings, adapters, overlay,
+  suggestion card, personal dictionary, ignored sites, popup, options. Ships a working English grammar checker.
+- **Plan 2 — Model + wording + multilingual:** ModelEngine (WebGPU/wllama), validator, rewrites, proactive scan,
+  LanguageToolEngine, Light/Full mode UI, editor page.
+
 ## Stack
 
 - **WXT** (cross-browser MV3 extension framework) + **TypeScript** + Vite.
-- **Preact** for popup, options, editor page. Content-script UI is plain TS inside a Shadow DOM (small, isolated from page CSS).
-- **harper.js** (Harper grammar checker, WASM).
+- Plain TypeScript + DOM for popup and options (they are two small forms; no UI framework needed).
+  Content-script UI is plain TS inside a Shadow DOM (small, isolated from page CSS).
+- **harper.js** (Harper grammar checker, WASM). The extension loads the separate `.wasm` file
+  (`harper.js/binary`); the inlined build is a 27 MB JS file and is used only in unit tests.
 - **@mlc-ai/web-llm** for WebGPU inference; **wllama** (llama.cpp WASM) as CPU fallback.
 - **Vitest** (+ happy-dom) for unit tests, **Playwright** for extension e2e in Chromium.
 
@@ -129,7 +138,7 @@ interface Settings {
 }
 ```
 
-Stored in `storage.sync`. Switching `mode` applies the preset; individual fields can then be changed.
+Stored as one item in `storage.local` (`storage.sync` caps items at 8 KB, too small for a dictionary). Switching `mode` applies the preset; individual fields can then be changed.
 Options page documents the LanguageTool command: `docker run -d -p 8081:8010 erikvl87/languagetool`.
 
 ## UI
@@ -147,15 +156,15 @@ Options page documents the LanguageTool command: `docker run -d -p 8081:8010 eri
 
 ## Text adapters
 
-- **TextareaAdapter** (textarea, input[type=text|search|email|url]): mirror-div technique — a hidden div copying the
+- **TextareaAdapter** (textarea, input[type=text|search|url]; `email` is excluded because it has no selection API): mirror-div technique — a hidden div copying the
   field's computed styles to measure character positions. Overlay is positioned over the field and
   synced on scroll, resize (`ResizeObserver`) and input.
 - **ContentEditableAdapter:** walks text nodes to build `text` plus an offset→(node, offset) map; block elements and
   `<br>` become `\n`. Underline rectangles come from `Range.getClientRects()`.
 - **Applying a replacement:** select the range, then `document.execCommand("insertText", …)` so the editor's own
   undo stack and input events work; fallback to direct value set + synthetic `input` event for textareas.
-- Fields skipped: password, fields with `spellcheck="false"` *and* `data-gramm="false"`, code editors
-  (CodeMirror/Monaco class markers), fields under ~3 characters wide, ignored sites.
+- Fields skipped: password, read-only/disabled, anything inside `[data-gramm="false"]` or `[data-opengrammar="false"]`,
+  code editors (CodeMirror/Monaco/Ace class markers), ignored sites.
 
 ## Error handling
 
