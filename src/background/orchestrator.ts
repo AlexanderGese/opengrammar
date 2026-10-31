@@ -4,6 +4,9 @@ import { splitSentences } from '@/lib/sentences';
 import type { Settings } from '@/lib/settings';
 import type { GrammarEngine, Issue, Lang } from '@/lib/types';
 
+/** v1 limit: texts longer than this (UTF-16 units) are not checked at all. */
+export const MAX_CHECK_LENGTH = 50_000;
+
 export interface OrchestratorDeps {
   engines: GrammarEngine[];
   getSettings(): Promise<Settings>;
@@ -16,7 +19,7 @@ export class Orchestrator {
   private readonly inflight = new Map<string, AbortController>();
 
   constructor(private readonly deps: OrchestratorDeps) {
-    this.cache = new LruCache(deps.cacheSize ?? 500);
+    this.cache = new LruCache(deps.cacheSize ?? 5000);
   }
 
   async check(fieldId: string, text: string): Promise<Issue[]> {
@@ -24,9 +27,11 @@ export class Orchestrator {
     const ctrl = new AbortController();
     this.inflight.set(fieldId, ctrl);
     try {
+      if (text.length > MAX_CHECK_LENGTH) return [];
       const settings = await this.deps.getSettings();
-      if (!settings.enabled) return [];
+      if (ctrl.signal.aborted || !settings.enabled) return [];
       const lang = await this.deps.detect(text, settings.defaultLanguage);
+      if (ctrl.signal.aborted) return [];
       const engine = this.deps.engines.find((e) => e.supports(lang));
       if (!engine) return [];
 
@@ -36,8 +41,8 @@ export class Orchestrator {
         let found = this.cache.get(key);
         if (!found) {
           found = await engine.check(sentence.text, lang, ctrl.signal);
-          if (ctrl.signal.aborted) return [];
           this.cache.set(key, found);
+          if (ctrl.signal.aborted) return [];
         }
         for (const issue of found) {
           const start = issue.start + sentence.start;

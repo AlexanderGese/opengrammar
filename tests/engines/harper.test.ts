@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { binaryInlined } from 'harper.js/binaryInlined';
 import { HarperEngine, toIssueKind } from '@/engines/harper';
 
@@ -29,6 +29,17 @@ describe('HarperEngine', () => {
     const ctrl = new AbortController();
     ctrl.abort();
     expect(await engine.check('This is teh test.', 'en', ctrl.signal)).toEqual([]);
+  });
+});
+
+describe('HarperEngine setup', () => {
+  it('retries setup after a failure', async () => {
+    const e = new HarperEngine(binaryInlined);
+    const setup = vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValue(undefined);
+    (e as unknown as { linter: unknown }).linter = { setup, lint: async () => [] };
+    await expect(e.check('x', 'en', signal)).rejects.toThrow('boom');
+    expect(await e.check('x', 'en', signal)).toEqual([]);
+    expect(setup).toHaveBeenCalledTimes(2);
   });
 });
 

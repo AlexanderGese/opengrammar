@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Orchestrator, type OrchestratorDeps } from '@/background/orchestrator';
+import { MAX_CHECK_LENGTH, Orchestrator, type OrchestratorDeps } from '@/background/orchestrator';
 import { DEFAULT_SETTINGS, type Settings } from '@/lib/settings';
 import type { GrammarEngine, Issue } from '@/lib/types';
 
@@ -75,5 +75,25 @@ describe('Orchestrator', () => {
 
     expect(await first).toEqual([]);
     expect(await second).toHaveLength(1);
+    // The superseded check's sentence result is still cached.
+    expect(await o.check('f1', 'One bad.')).toHaveLength(1);
+    expect(engine.check).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a few thousand sentences cached by default', async () => {
+    const engine = badWordEngine();
+    const o = make(engine);
+    const text = Array.from({ length: 600 }, (_, i) => `S${i} bad.`).join(' ');
+    await o.check('f1', text);
+    expect(engine.check).toHaveBeenCalledTimes(600);
+    await o.check('f1', text);
+    expect(engine.check).toHaveBeenCalledTimes(600);
+  });
+
+  it('skips texts longer than MAX_CHECK_LENGTH', async () => {
+    const engine = badWordEngine();
+    expect(MAX_CHECK_LENGTH).toBe(50_000);
+    expect(await make(engine).check('f1', 'bad '.repeat(12_501))).toEqual([]);
+    expect(engine.check).not.toHaveBeenCalled();
   });
 });

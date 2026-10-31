@@ -32,7 +32,10 @@ export class HarperEngine implements GrammarEngine {
 
   async check(text: string, _lang: Lang, signal: AbortSignal): Promise<Issue[]> {
     if (signal.aborted) return [];
-    this.ready ??= this.linter.setup();
+    this.ready ??= this.linter.setup().catch((e: unknown) => {
+      this.ready = null; // let the next check retry
+      throw e;
+    });
     await this.ready;
     if (signal.aborted) return [];
     const lints = await this.linter.lint(text, { language: 'plaintext' });
